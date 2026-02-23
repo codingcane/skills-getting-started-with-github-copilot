@@ -11,6 +11,13 @@ from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
 
+from src.activities import (
+    signup_participant,
+    unregister_participant,
+    ActivityNotFound,
+    ParticipantNotFound,
+)
+
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
 
@@ -91,34 +98,22 @@ def get_activities():
 @app.post("/activities/{activity_name}/signup")
 def signup_for_activity(activity_name: str, email: str):
     """Sign up a student for an activity"""
-    # Validate activity exists
-    if activity_name not in activities:
+    try:
+        signup_participant(activities, activity_name, email)
+        return {"message": f"Signed up {email} for {activity_name}"}
+    except ActivityNotFound:
         raise HTTPException(status_code=404, detail="Activity not found")
-
-    # Get the specific activity
-    activity = activities[activity_name]
-
-# Validate student is not already signed up
-    if email in activity["participants"]:
-        raise HTTPException(status_code=400, detail="Student already signed up")
-    
-    # Add student
-    activity["participants"].append(email)
-    return {"message": f"Signed up {email} for {activity_name}"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.delete("/activities/{activity_name}/participants")
-def unregister_participant(activity_name: str, email: str):
+def unregister_participant_endpoint(activity_name: str, email: str):
     """Unregister a student from an activity"""
-    # Validate activity exists
-    if activity_name not in activities:
+    try:
+        unregister_participant(activities, activity_name, email)
+        return {"message": f"Unregistered {email} from {activity_name}"}
+    except ActivityNotFound:
         raise HTTPException(status_code=404, detail="Activity not found")
-
-    activity = activities[activity_name]
-
-    # Validate participant exists
-    if email not in activity["participants"]:
+    except ParticipantNotFound:
         raise HTTPException(status_code=404, detail="Participant not found")
-
-    activity["participants"].remove(email)
-    return {"message": f"Unregistered {email} from {activity_name}"}
